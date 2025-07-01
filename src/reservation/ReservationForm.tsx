@@ -1,16 +1,39 @@
-import React, { useState } from 'react';
-import logo from '../assets/pandawok-brown.png';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import logo from '../assets/pandawok-brown.png'; // Asegúrate de que la ruta sea correcta
+
+// Definiciones de interfaces
+interface Country {
+  code: string;
+  name: string;
+  dialCode: string;
+  flag: string;
+}
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  comments: string;
+  acceptTerms: boolean;
+}
+
+interface ModifiedData {
+  people: string;
+  date: string;
+  time: string;
+  phone: string;
+  email: string;
+  comments: string;
+}
 
 const ReservationForm: React.FC = () => {
+  // --- Estados del Formulario y UI ---
   const [selectedPeople, setSelectedPeople] = useState('2');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null); // ¡CAMBIO AQUÍ! Ahora es Date | null
   const [selectedTime, setSelectedTime] = useState('12:30 pm');
-  const [showInfoAlert, setShowInfoAlert] = useState(true);
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showMonthYearPicker, setShowMonthYearPicker] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
     phone: '',
@@ -18,12 +41,7 @@ const ReservationForm: React.FC = () => {
     comments: '',
     acceptTerms: false
   });
-  const [selectedCountry, setSelectedCountry] = useState('CL');
-  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-  const [showConfirmForm, setShowConfirmForm] = useState(false);
-  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
-  const [showModifyForm, setShowModifyForm] = useState(false);
-  const [modifiedData, setModifiedData] = useState({
+  const [modifiedData, setModifiedData] = useState<ModifiedData>({
     people: '',
     date: '',
     time: '',
@@ -32,63 +50,114 @@ const ReservationForm: React.FC = () => {
     comments: ''
   });
 
+  // Estados de control de pantallas/modales
+  const [showInfoAlert, setShowInfoAlert] = useState(true);
+  const [showRequestForm, setShowRequestForm] = useState(false); // Para grupos grandes
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showMonthYearPicker, setShowMonthYearPicker] = useState(false); // Para el selector de mes/año del calendario
+  const [currentMonth, setCurrentMonth] = useState(new Date()); // Mes actual del calendario
+  const [selectedCountry, setSelectedCountry] = useState('CL'); // País para el teléfono
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showConfirmForm, setShowConfirmForm] = useState(false); // Pantalla de confirmación previa al envío
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false); // Pantalla de éxito post-envío
+  const [showModifyForm, setShowModifyForm] = useState(false); // Pantalla para modificar una reserva confirmada
+
+  // Estados de envío y errores de API
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // --- Datos Estáticos ---
+  const countries: Country[] = [
+    { code: 'CL', name: 'Chile', dialCode: '+56', flag: '🇨🇱' },
+    { code: 'AR', name: 'Argentina', dialCode: '+54', flag: '🇦🇷' },
+    { code: 'PE', name: 'Perú', dialCode: '+51', flag: '🇵🇪' },
+    { code: 'CO', name: 'Colombia', dialCode: '+57', flag: '🇨🇴' },
+    { code: 'MX', name: 'México', dialCode: '+52', flag: '🇲🇽' },
+    { code: 'ES', name: 'España', dialCode: '+34', flag: '🇪🇸' },
+    // Agrega más países si es necesario
+  ];
+
   const timeSlots = [
     '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
     '3:00 pm', '3:30 pm', '4:00 pm', '4:30 pm'
   ];
 
-  const countries = [
-    { code: 'CL', name: 'Chile', dialCode: '+56', flag: '🇨🇱' },
-    { code: 'AR', name: 'Argentina', dialCode: '+54', flag: '🇦🇷' },
-    { code: 'PE', name: 'Perú', dialCode: '+51', flag: '🇵🇪' },
-    { code: 'BO', name: 'Bolivia', dialCode: '+591', flag: '🇧🇴' },
-    { code: 'BR', name: 'Brasil', dialCode: '+55', flag: '🇧🇷' },
-    { code: 'CO', name: 'Colombia', dialCode: '+57', flag: '🇨🇴' },
-    { code: 'EC', name: 'Ecuador', dialCode: '+593', flag: '🇪🇨' },
-    { code: 'VE', name: 'Venezuela', dialCode: '+58', flag: '🇻🇪' },
-    { code: 'UY', name: 'Uruguay', dialCode: '+598', flag: '🇺🇾' },
-    { code: 'PY', name: 'Paraguay', dialCode: '+595', flag: '🇵🇾' },
-    { code: 'US', name: 'Estados Unidos', dialCode: '+1', flag: '🇺🇸' },
-    { code: 'CA', name: 'Canadá', dialCode: '+1', flag: '🇨🇦' },
-    { code: 'MX', name: 'México', dialCode: '+52', flag: '🇲🇽' },
-    { code: 'ES', name: 'España', dialCode: '+34', flag: '🇪🇸' },
-    { code: 'FR', name: 'Francia', dialCode: '+33', flag: '🇫🇷' },
-    { code: 'DE', name: 'Alemania', dialCode: '+49', flag: '🇩🇪' },
-    { code: 'IT', name: 'Italia', dialCode: '+39', flag: '🇮🇹' },
-    { code: 'GB', name: 'Reino Unido', dialCode: '+44', flag: '🇬🇧' },
-    { code: 'AU', name: 'Australia', dialCode: '+61', flag: '🇦🇺' },
-    { code: 'JP', name: 'Japón', dialCode: '+81', flag: '🇯🇵' },
-    { code: 'CN', name: 'China', dialCode: '+86', flag: '🇨🇳' },
-    { code: 'KR', name: 'Corea del Sur', dialCode: '+82', flag: '🇰🇷' }
-  ];
-
+  // Obtener datos del país seleccionado
   const selectedCountryData = countries.find(country => country.code === selectedCountry) || countries[0];
 
-  const isLargeGroup = parseInt(selectedPeople) >= 20;
+  // --- Efectos ---
+  useEffect(() => {
+    // Establecer la fecha de mañana como predeterminada al cargar
+    if (!selectedDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setSelectedDate(tomorrow); // ¡CAMBIO AQUÍ! Guardamos el objeto Date
+    }
+  }, [selectedDate]); // Dependencia: re-ejecutar si selectedDate se vuelve null (aunque no debería pasar si siempre se establece)
 
-  const handleRequestReservation = () => {
-    setShowRequestForm(true);
+  // --- Funciones de Utilidad ---
+
+  // Formatear fecha a español (ej: "Mié, 15 Ago") - ¡Ahora recibe un objeto Date!
+  const formatDateSpanish = (dateObj: Date): string => { // ¡CAMBIO AQUÍ! Parámetro dateObj: Date
+    const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
+    return dateObj.toLocaleDateString('es-ES', options).replace(/\./g, ''); // Elimina los puntos de las abreviaturas
   };
 
-  const handleBackToSelection = () => {
-    setShowRequestForm(false);
+  // Obtener el número de teléfono sin el código de país
+  const getPhoneNumber = (): string => {
+    const dialCode = selectedCountryData.dialCode;
+    if (formData.phone.startsWith(dialCode)) {
+      return formData.phone.substring(dialCode.length).trim();
+    }
+    return formData.phone;
   };
 
+  // Determinar si el grupo es grande
+  const isLargeGroup = parseInt(selectedPeople) > 20;
+
+  // --- Manejadores de Eventos ---
+
+  // Manejar cambio en inputs de texto/textarea
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
+  // Manejar cambio en el input de teléfono
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numberPart = e.target.value.replace(/\D/g, ''); // Solo números
+    const fullPhoneNumber = `${selectedCountryData.dialCode} ${numberPart}`;
+    setFormData(prev => ({ ...prev, phone: fullPhoneNumber }));
+  };
+
+  // Manejar click en "Continuar con la Reserva" (desde la pantalla inicial)
   const handleContinueReservation = () => {
     setShowConfirmForm(true);
   };
 
-  const handleConfirmReservation = () => {
-    setShowSuccessScreen(true);
+  // Manejar click en "Solicitar Reserva de Grupo" (desde la alerta de grupo grande)
+  const handleRequestReservation = () => {
+    setShowRequestForm(true);
   };
 
+  // Manejar click en la flecha de "Volver" en el formulario de solicitud
+  const handleBackToSelection = () => {
+    setShowRequestForm(false);
+    // Reinicia el número de personas a un valor por defecto si es necesario al volver
+    setSelectedPeople('2');
+  };
+
+  // Manejar click en "Modificar reserva" (desde la pantalla de éxito)
   const handleModifyReservation = () => {
-    console.log('Modify button clicked');
+    // Inicializar modifiedData con los valores actuales para pre-llenar el formulario de modificación
     setModifiedData({
       people: selectedPeople,
-      date: selectedDate,
+      date: selectedDate ? formatDateSpanish(selectedDate) : '', // Usar formato español para la UI
       time: selectedTime,
-      phone: getPhoneNumber(),
+      phone: getPhoneNumber(), // Asegúrate de obtener solo el número
       email: formData.email,
       comments: formData.comments
     });
@@ -96,347 +165,200 @@ const ReservationForm: React.FC = () => {
     setShowModifyForm(true);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-    }));
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const phoneNumber = e.target.value;
-    const fullPhone = `${selectedCountryData.dialCode} ${phoneNumber}`;
-    setFormData(prev => ({
-      ...prev,
-      phone: fullPhone
-    }));
-  };
-
-  const getPhoneNumber = () => {
-    if (!formData.phone) return '';
-    const dialCode = selectedCountryData.dialCode;
-    return formData.phone.startsWith(dialCode) 
-      ? formData.phone.slice(dialCode.length).trim()
-      : formData.phone;
-  };
-
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-    return firstDay === 0 ? 6 : firstDay - 1;
-  };
-
-  const formatDateSpanish = (day: number, month: number, year: number) => {
-    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const date = new Date(year, month, day);
-    return `${days[date.getDay()]}, ${months[month]} ${day}`;
-  };
-
-  const handleDateSelect = (day: number) => {
-    const selectedDateFormatted = formatDateSpanish(day, currentMonth.getMonth(), currentMonth.getFullYear());
-    
-    if (showModifyForm) {
-      setModifiedData(prev => ({ ...prev, date: selectedDateFormatted }));
-    } else {
-      setSelectedDate(selectedDateFormatted);
+  // Manejar envío de la reserva (POST a la API)
+  const handleConfirmReservation = async () => {
+    if (!formData.acceptTerms) {
+      setApiError('Debes aceptar los términos y condiciones para continuar.');
+      return;
     }
-    
+
+    setIsSubmitting(true);
+    setApiError(null);
+
+    // ¡NUEVO! Validar que selectedDate no sea null antes de intentar usarlo
+    if (!selectedDate) {
+      setApiError('Por favor, selecciona una fecha para la reserva.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const reservationData = {
+      nombre: formData.firstName,
+      apellido: formData.lastName,
+      correo_electronico: formData.email,
+      telefono: formData.phone,
+      cantidad_personas: parseInt(selectedPeople),
+      // ¡CAMBIO CLAVE AQUÍ! Usamos selectedDate (que es un objeto Date)
+      fecha_reserva: formatDateForBackend(selectedDate), 
+      horario: formatTimeForBackend(selectedTime),
+      notas: formData.comments,
+      // Aquí podrías agregar un campo para el cumpleaños si se ingresa
+      // cumpleaños_dia: ...
+      // cumpleaños_mes: ...
+    };
+
+    console.log("Enviando datos:", reservationData); // Para depuración
+
+    try {
+      // Reemplaza con tu URL de la API real
+      const response = await axios.post('http://localhost:5000/api/reservas', reservationData);
+      console.log('Reserva creada exitosamente:', response.data);
+      setShowConfirmForm(false); // Cierra la pantalla de confirmación
+      setShowSuccessScreen(true); // Muestra la pantalla de éxito
+      // Opcional: Limpiar formData si la reserva fue exitosa y no se necesita persistir los datos
+      setFormData({
+        firstName: '',
+        lastName: '',
+        phone: '',
+        email: '',
+        comments: '',
+        acceptTerms: false
+      });
+      setSelectedDate(null); // Limpiar la fecha seleccionada también
+      setSelectedPeople('2'); // Reiniciar personas
+      setSelectedTime('12:30 pm'); // Reiniciar hora
+    } catch (error: any) {
+      console.error('Error al crear reserva:', error);
+      setApiError(error.response?.data?.error || 'Error al crear la reserva. Por favor, inténtalo de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- Funciones para el Calendario ---
+  const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  // Modifica handleDateSelect para guardar un objeto Date
+  const handleDateSelect = (day: number) => {
+    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    setSelectedDate(newDate); // ¡CAMBIO AQUÍ! Guardamos el objeto Date
     setShowDatePicker(false);
   };
 
-  const handleMonthYearSelect = (month: number, year: number) => {
-    setCurrentMonth(new Date(year, month));
-    setShowMonthYearPicker(false);
+  // Modifica isSelected para comparar objetos Date
+  const isSelected = (day: number, month: number, year: number) => { // Recibe componentes de fecha
+    if (!selectedDate) return false; // Si no hay fecha seleccionada, no puede ser seleccionada
+
+    const dateToCompare = new Date(year, month, day); // Crea un objeto Date para el día del calendario
+    // Compara las fechas ignorando la hora
+    return selectedDate.getFullYear() === dateToCompare.getFullYear() &&
+           selectedDate.getMonth() === dateToCompare.getMonth() &&
+           selectedDate.getDate() === dateToCompare.getDate();
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth(prev => {
-      const newMonth = new Date(prev);
-      if (direction === 'prev') {
-        newMonth.setMonth(prev.getMonth() - 1);
-      } else {
-        newMonth.setMonth(prev.getMonth() + 1);
-      }
-      return newMonth;
-    });
-  };
-
-  const renderMonthYearPicker = () => {
-    const currentYear = currentMonth.getFullYear();
-    const currentMonthIndex = currentMonth.getMonth();
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
-
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setShowMonthYearPicker(false)}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h3 className="text-lg font-semibold text-gray-800">Seleccionar fecha</h3>
-          <div className="w-7"></div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Año</label>
-          <div className="grid grid-cols-5 gap-2">
-            {years.map(year => (
-              <button
-                key={year}
-                onClick={() => handleMonthYearSelect(currentMonthIndex, year)}
-                className={`p-2 rounded-lg text-sm transition-colors ${
-                  year === currentYear
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
-                }`}
-              >
-                {year}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Mes</label>
-          <div className="grid grid-cols-3 gap-2">
-            {months.map((month, index) => (
-              <button
-                key={month}
-                onClick={() => handleMonthYearSelect(index, currentYear)}
-                className={`p-2 rounded-lg text-sm transition-colors ${
-                  index === currentMonthIndex
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
-                }`}
-              >
-                {month}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const getAvailableDates = () => {
-    const today = new Date();
-    const maxDate = new Date();
-    maxDate.setMonth(today.getMonth() + 1);
-    
-    return { today, maxDate };
-  };
-
-  React.useEffect(() => {
-    if (!selectedDate) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const formattedDate = formatDateSpanish(tomorrow.getDate(), tomorrow.getMonth(), tomorrow.getFullYear());
-      setSelectedDate(formattedDate);
-    }
-  }, []);
-
- 
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showCountryDropdown) {
-        const target = event.target as HTMLElement;
-        const dropdown = target.closest('.country-dropdown-container');
-        if (!dropdown) {
-          setShowCountryDropdown(false);
-        }
-      }
-      
-      if (showDatePicker) {
-        const target = event.target as HTMLElement;
-        const datePicker = target.closest('.date-picker-container');
-        if (!datePicker) {
-          setShowDatePicker(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCountryDropdown, showDatePicker]);
 
   const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth);
-    const firstDay = getFirstDayOfMonth(currentMonth);
-    const monthName = currentMonth.toLocaleDateString('es-ES', { month: 'long' });
-    
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const totalDays = daysInMonth(month, year);
+    const startDay = firstDayOfMonth(month, year); // 0 = Domingo, 1 = Lunes, etc.
+
     const days = [];
-    const { today, maxDate } = getAvailableDates();
-    
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="w-8 h-8 sm:w-9 sm:h-9"></div>);
+    for (let i = 0; i < startDay; i++) {
+      days.push(<div key={`empty-${i}`} className="p-2 text-center text-gray-400"></div>);
     }
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-      const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const isToday = currentDate.toDateString() === today.toDateString();
-      const isPast = currentDate < today;
-      const isFuture = currentDate > maxDate;
-      const isAvailable = !isPast && !isFuture;
-      
-      const isSelected = selectedDate && (() => {
-        try {
-          const parts = selectedDate.split(', ');
-          if (parts.length === 2) {
-            const dayPart = parts[1].split(' ');
-            const selectedDay = parseInt(dayPart[1]);
-            const selectedMonthName = dayPart[0];
-            
-            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-            const selectedMonthIndex = monthNames.indexOf(selectedMonthName);
-            
-            return day === selectedDay && 
-                   currentMonth.getMonth() === selectedMonthIndex &&
-                   currentMonth.getFullYear() === currentMonth.getFullYear();
-          }
-        } catch (error) {
-          console.log('Error parsing date:', error);
-        }
-        return false;
-      })();
-      
+
+    const today = new Date();
+    // Normalizamos 'today' para comparar solo la fecha (sin hora)
+    today.setHours(0, 0, 0, 0); 
+
+    for (let i = 1; i <= totalDays; i++) {
+      const dayDate = new Date(year, month, i);
+      dayDate.setHours(0, 0, 0, 0); // Normalizamos para comparar con today
+
+      const isDisabled = dayDate < today; // Si el día es anterior a hoy
+      const selected = isSelected(i, month, year); // Llama a la isSelected modificada
+
       days.push(
         <button
-          key={day}
-          onClick={() => isAvailable ? handleDateSelect(day) : null}
-          disabled={!isAvailable}
-          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-medium transition-colors ${
-            isSelected 
-              ? 'bg-blue-500 text-white' 
-              : isAvailable
-              ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-              : 'text-gray-400 cursor-not-allowed'
+          key={i}
+          onClick={() => handleDateSelect(i)}
+          className={`p-2 rounded-lg text-sm font-medium ${
+            selected
+              ? 'bg-orange-500 text-white'
+              : isDisabled
+              ? 'text-gray-400 cursor-not-allowed'
+              : 'hover:bg-gray-100 text-gray-800'
           }`}
+          disabled={isDisabled}
         >
-          {day}
+          {i}
         </button>
       );
     }
 
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
     return (
-      <div className="absolute top-full left-0 right-0 sm:right-auto mt-2 bg-white border border-gray-200 rounded-xl shadow-lg p-3 sm:p-4 z-50 w-full sm:w-72 max-w-sm">
-        {showMonthYearPicker ? (
-          <div className="bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={() => setShowMonthYearPicker(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h3 className="text-sm sm:text-base font-semibold text-gray-800">Seleccionar fecha</h3>
-              <div className="w-6"></div>
-            </div>
-
-            <div className="mb-3">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Año</label>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-1">
-                {[today.getFullYear(), today.getFullYear() + 1].map(year => (
-                  <button
-                    key={year}
-                    onClick={() => handleMonthYearSelect(currentMonth.getMonth(), year)}
-                    className={`p-1.5 rounded text-xs transition-colors ${
-                      year === currentMonth.getFullYear()
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
-                    }`}
-                  >
-                    {year}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Mes</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-                {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map((month, index) => {
-                  const monthDate = new Date(currentMonth.getFullYear(), index, 1);
-                  const isValidMonth = monthDate >= new Date(today.getFullYear(), today.getMonth(), 1) && 
-                                     monthDate <= new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-                  
-                  if (!isValidMonth) return null;
-                  
-                  return (
-                    <button
-                      key={month}
-                      onClick={() => handleMonthYearSelect(index, currentMonth.getFullYear())}
-                      className={`p-1.5 rounded text-xs transition-colors ${
-                        index === currentMonth.getMonth()
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
-                      }`}
-                    >
-                      {month}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={() => navigateMonth('prev')}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setShowMonthYearPicker(true)}
-                className="text-sm sm:text-base font-semibold text-gray-800 capitalize hover:bg-gray-100 px-2 py-1 rounded transition-colors"
-              >
-                {monthName} {currentMonth.getFullYear()}
-              </button>
-              <button
-                onClick={() => navigateMonth('next')}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-7 gap-0.5 mb-1">
-              {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
-                <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
-                  {day}
-                </div>
-              ))}
-            </div>
-            
-            <div className="grid grid-cols-7 gap-0.5">
-              {days}
-            </div>
-          </>
-        )}
+      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-100 rounded-full">
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span className="font-semibold text-lg text-gray-800">
+            {monthNames[month]} {year}
+          </span>
+          <button onClick={handleNextMonth} className="p-2 hover:bg-gray-100 rounded-full">
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-500 mb-2">
+          {dayNames.map(day => (
+            <div key={day}>{day}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {days}
+        </div>
       </div>
     );
-  }
+  };
 
+  // --- Formato para Backend ---
+  // ¡NUEVA FUNCIÓN! Formatear fecha para el backend (YYYY-MM-DD) desde un objeto Date
+  const formatDateForBackend = (dateObj: Date): string => {
+    const year = dateObj.getFullYear();
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0'); // Mes es 0-indexado, se suma 1
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Formatear hora para el backend (HH:MM:SS)
+  const formatTimeForBackend = (time: string): string => {
+    const [timePart, ampm] = time.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    
+    if (ampm === 'pm' && hours !== 12) {
+      hours += 12;
+    } else if (ampm === 'am' && hours === 12) {
+      hours = 0; // 12 AM (medianoche) es 00 en formato 24h
+    }
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+  };
+
+  // --- Renderizado del Componente ---
+
+
+  // --- Renderización del Componente ---
+
+  // Pantalla de éxito de la reserva
   if (showSuccessScreen) {
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ backgroundColor: '#211B17' }}>
@@ -470,7 +392,7 @@ const ReservationForm: React.FC = () => {
               
               <div className="flex items-center gap-2">
                 <span className="material-icons text-gray-600 text-xl">calendar_today</span>
-                <span className="text-gray-800">{selectedDate}</span>
+                <span>{selectedDate ? formatDateSpanish(selectedDate) : 'Fecha no seleccionada'}</span>
               </div>
               
               <div className="flex items-center gap-2">
@@ -531,7 +453,11 @@ const ReservationForm: React.FC = () => {
               Modificar reserva
             </button>
             <button 
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                // Aquí podrías implementar la lógica para cancelar la reserva
+                // Por ahora, solo recarga la página
+                window.location.reload(); 
+              }}
               className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
               Cancelar reserva
@@ -542,6 +468,7 @@ const ReservationForm: React.FC = () => {
     );
   }
 
+  // Formulario para modificar la reserva
   if (showModifyForm) {
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ backgroundColor: '#211B17' }}>
@@ -566,7 +493,7 @@ const ReservationForm: React.FC = () => {
                 <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-gray-800">{modifiedData.date || selectedDate}</span>
+                <span>{selectedDate ? formatDateSpanish(selectedDate) : 'Fecha no seleccionada'}</span>
               </div>
               
               <div className="flex items-center gap-2">
@@ -596,8 +523,8 @@ const ReservationForm: React.FC = () => {
                       onClick={() => setShowCountryDropdown(!showCountryDropdown)}
                       className="flex items-center px-3 border border-r-0 border-gray-300 bg-gray-50 rounded-l-lg min-w-[100px] h-full outline-none"
                     >
-                      <span className="text-sm mr-2">🇨🇱</span>
-                      <span className="text-sm text-gray-600 mr-2">+56</span>
+                      <span className="text-sm mr-2">{selectedCountryData.flag}</span>
+                      <span className="text-sm text-gray-600 mr-2">{selectedCountryData.dialCode}</span>
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
@@ -606,8 +533,7 @@ const ReservationForm: React.FC = () => {
                       type="tel"
                       name="phoneNumber"
                       value={modifiedData.phone}
-                      onChange={(e) => setModifiedData(prev => ({ ...prev, phone: e.target.value }))
-                      }
+                      onChange={(e) => setModifiedData(prev => ({ ...prev, phone: e.target.value }))}
                       className="flex-1 p-3 border border-gray-300 rounded-r-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none h-full"
                     />
                   </div>
@@ -620,6 +546,10 @@ const ReservationForm: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setSelectedCountry(country.code);
+                            // Al cambiar de país en el formulario de modificación, actualiza el dialCode en modifiedData.phone
+                            // Aquí podrías mantener solo el número o el número completo
+                            const currentPhoneNumPart = getPhoneNumber(); // Obtiene solo la parte del número
+                            setModifiedData(prev => ({ ...prev, phone: `${country.dialCode} ${currentPhoneNumPart}` }));
                             setShowCountryDropdown(false);
                           }}
                           className="w-full flex items-center px-3 py-2 hover:bg-gray-100 text-left"
@@ -639,8 +569,7 @@ const ReservationForm: React.FC = () => {
                   type="email"
                   name="email"
                   value={modifiedData.email}
-                  onChange={(e) => setModifiedData(prev => ({ ...prev, email: e.target.value }))
-                  }
+                  onChange={(e) => setModifiedData(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none h-12"
                   placeholder="test@gmail.com"
                 />
@@ -654,7 +583,7 @@ const ReservationForm: React.FC = () => {
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 hover:border-gray-400 outline-none text-left"
                 >
-                  {modifiedData.date || selectedDate}
+                  {modifiedData.date || (selectedDate ? formatDateSpanish(selectedDate) : 'Seleccionar fecha')}
                 </button>
                 {showDatePicker && (
                   <div className="absolute top-full left-0 mt-1 z-50 date-picker-container">
@@ -667,8 +596,7 @@ const ReservationForm: React.FC = () => {
                 <label className="block text-sm text-gray-500 mb-1">Hora</label>
                 <select 
                   value={modifiedData.time || selectedTime}
-                  onChange={(e) => setModifiedData(prev => ({ ...prev, time: e.target.value }))
-                  }
+                  onChange={(e) => setModifiedData(prev => ({ ...prev, time: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-gray-400 outline-none"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
                 >
@@ -681,11 +609,10 @@ const ReservationForm: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm text-gray-500 mb-1">Persona</label>
+                <label className="block text-sm text-gray-500 mb-1">Personas</label>
                 <select 
                   value={modifiedData.people || selectedPeople}
-                  onChange={(e) => setModifiedData(prev => ({ ...prev, people: e.target.value }))
-                  }
+                  onChange={(e) => setModifiedData(prev => ({ ...prev, people: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-gray-400 outline-none"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
                 >
@@ -702,8 +629,7 @@ const ReservationForm: React.FC = () => {
               <textarea
                 name="comments"
                 value={modifiedData.comments}
-                onChange={(e) => setModifiedData(prev => ({ ...prev, comments: e.target.value }))
-                }
+                onChange={(e) => setModifiedData(prev => ({ ...prev, comments: e.target.value }))}
                 rows={3}
                 className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none resize-none"
                 placeholder="Comentario (opcional)"
@@ -714,28 +640,48 @@ const ReservationForm: React.FC = () => {
           <div className="flex gap-4">
             <button 
               onClick={() => {
+                // Si cancela la modificación, vuelve a la pantalla de éxito
                 setShowModifyForm(false);
                 setShowSuccessScreen(true);
               }}
               className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
-              Cancelar reserva
+              Cancelar modificación
             </button>
             <button 
               onClick={() => {
+                // Aplica los cambios de modifiedData a los estados principales
                 if (modifiedData.people) setSelectedPeople(modifiedData.people);
-                if (modifiedData.date) setSelectedDate(modifiedData.date);
+                
+                // ¡CORRECCIÓN CRÍTICA AQUÍ! Convertir string a Date
+                if (modifiedData.date) {
+                  const parsedDate = new Date(modifiedData.date);
+                  // Verificar si la fecha parseada es válida antes de establecerla
+                  if (!isNaN(parsedDate.getTime())) {
+                    setSelectedDate(parsedDate);
+                  } else {
+                    console.error("Error: modifiedData.date no es un formato de fecha válido para setSelectedDate.", modifiedData.date);
+                    // Opcional: Podrías establecer selectedDate a null o manejar el error de otra manera
+                    setSelectedDate(null); 
+                  }
+                }
+
                 if (modifiedData.time) setSelectedTime(modifiedData.time);
+                
+                // Asegúrate de que el teléfono y email se actualicen correctamente en formData
+                if (modifiedData.phone) setFormData(prev => ({ ...prev, phone: modifiedData.phone }));
                 if (modifiedData.email) setFormData(prev => ({ ...prev, email: modifiedData.email }));
                 if (modifiedData.comments) setFormData(prev => ({ ...prev, comments: modifiedData.comments }));
                 
-                alert('Reserva modificada exitosamente');
+                // Aquí deberías llamar a una función para enviar la modificación a tu API
+                // Por ahora, solo muestra un alert y vuelve a la pantalla de éxito
+                alert('Reserva modificada exitosamente (simulado).'); // [Image of a successful operation icon]
                 setShowModifyForm(false);
                 setShowSuccessScreen(true);
               }}
               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
-              Modificar reserva
+              Confirmar modificación
             </button>
           </div>
         </div>
@@ -743,6 +689,7 @@ const ReservationForm: React.FC = () => {
     );
   }
 
+  // Formulario de solicitud de reserva (para grupos grandes)
   if (showRequestForm) {
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ backgroundColor: '#211B17' }}>
@@ -788,7 +735,7 @@ const ReservationForm: React.FC = () => {
                 onClick={() => setShowDatePicker(!showDatePicker)}
                 className="w-full p-3 border-2 border-orange-500 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 hover:border-orange-300 outline-none font-medium text-gray-800"
               >
-                {selectedDate}
+                {selectedDate ? formatDateSpanish(selectedDate) : ''}
               </button>
               {showDatePicker && (
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 date-picker-container">
@@ -926,24 +873,28 @@ const ReservationForm: React.FC = () => {
 
           <div className="text-center">
             <button 
-              disabled={!formData.firstName || !formData.lastName || !formData.email}
+              // Deshabilita si faltan nombre, apellido o email
+              disabled={!formData.firstName || !formData.lastName || !formData.email || isSubmitting}
               className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-xl transition-all duration-200"
+              onClick={handleConfirmReservation} // Asume que el botón de solicitud también usa handleConfirmReservation para enviar datos
             >
-              Solicitar Reserva
+              {isSubmitting ? 'Enviando solicitud...' : 'Solicitar Reserva'}
             </button>
+            {apiError && <p className="text-red-500 text-sm mt-2">{apiError}</p>}
           </div>
         </div>
       </div>
     );
   }
 
+  // Pantalla de confirmación de reserva (paso antes del envío final)
   if (showConfirmForm) {
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ backgroundColor: '#211B17' }}>
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full border border-gray-200">
           <div className="flex items-center mb-6">
             <button 
-              onClick={() => setShowConfirmForm(false)}
+              onClick={() => setShowConfirmForm(false)} // Volver a la pantalla de selección de horario
               className="p-2 hover:bg-orange-100 rounded-lg transition-colors mr-4"
             >
               <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -965,7 +916,9 @@ const ReservationForm: React.FC = () => {
               
               <div className="flex items-center gap-2">
                 <span className="material-icons text-gray-600 text-xl">calendar_today</span>
-                <span className="text-gray-800">{selectedDate}</span>
+                <span className="text-gray-800">
+                  {selectedDate ? formatDateSpanish(selectedDate) : 'Fecha no seleccionada'}
+                </span>
               </div>
               
               <div className="flex items-center gap-2">
@@ -999,7 +952,8 @@ const ReservationForm: React.FC = () => {
                   value={formData.firstName}
                   onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none"
-                  placeholder="Prueba"
+                  placeholder="Tu Nombre" // Cambiado para ser más genérico
+                  required 
                 />
               </div>
               <div>
@@ -1010,7 +964,8 @@ const ReservationForm: React.FC = () => {
                   value={formData.lastName}
                   onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none"
-                  placeholder="Latasoft"
+                  placeholder="Tu Apellido" // Cambiado para ser más genérico
+                  required
                 />
               </div>
             </div>
@@ -1076,7 +1031,8 @@ const ReservationForm: React.FC = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none h-12"
-                  placeholder="test@gmail.com"
+                  placeholder="correo@ejemplo.com"
+                  required
                 />
               </div>
             </div>
@@ -1092,22 +1048,38 @@ const ReservationForm: React.FC = () => {
                 placeholder="Comentario (opcional)"
               />
             </div>
+
+            <div className="flex items-center mb-6">
+              <input
+                type="checkbox"
+                name="acceptTerms"
+                checked={formData.acceptTerms}
+                onChange={handleInputChange}
+                className="form-checkbox h-5 w-5 text-orange-600 rounded"
+                id="acceptTerms"
+              />
+              <label htmlFor="acceptTerms" className="ml-2 text-sm text-gray-700">
+                Acepto los <a href="#" className="text-orange-600 hover:underline">términos y condiciones</a>
+              </label>
+            </div>
           </div>
 
           <div className="text-center">
             <button 
               onClick={handleConfirmReservation}
-              disabled={!formData.firstName || !formData.lastName || !formData.email}
+              disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.acceptTerms || isSubmitting}
               className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-xl transition-all duration-200"
             >
-              Confirmar Reserva
+              {isSubmitting ? 'Confirmando...' : 'Confirmar Reserva'}
             </button>
+            {apiError && <p className="text-red-500 text-sm mt-2">{apiError}</p>}
           </div>
         </div>
       </div>
     );
   }
 
+  // Pantalla principal de selección de reserva (valor por defecto)
   return (
     <div className="min-h-screen flex items-center justify-center p-5" style={{ backgroundColor: '#211B17' }}>
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full border border-gray-200">
@@ -1135,7 +1107,7 @@ const ReservationForm: React.FC = () => {
               className="absolute top-2 right-3 text-orange-400 hover:text-orange-600 text-xl p-1 transition-colors"
               onClick={() => setShowInfoAlert(false)}
             >
-              ×
+              &times;
             </button>
           </div>
         )}
@@ -1149,6 +1121,8 @@ const ReservationForm: React.FC = () => {
               className="w-full p-4 border-2 border-orange-500 rounded-xl bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-orange-300 outline-none"
               style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23f97316' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 12px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
             >
+              {/* Opción de 1 persona si se permite */}
+              <option value="1">1 Persona</option>
               {Array.from({ length: 149 }, (_, i) => i + 2).map(num => (
                 <option key={num} value={num.toString()}>
                   {num} Persona{num > 1 ? 's' : ''}
@@ -1162,7 +1136,9 @@ const ReservationForm: React.FC = () => {
               onClick={() => setShowDatePicker(!showDatePicker)}
               className="w-full p-4 border-2 border-orange-500 rounded-xl bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 hover:border-orange-300 text-left flex items-center justify-between outline-none"
             >
-              <span className="text-gray-800">{selectedDate}</span>
+              <span className="text-gray-800">
+                {selectedDate ? formatDateSpanish(selectedDate) : 'Fecha no disponible'}
+              </span>
               <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m6 8 4 4 4-4" />
               </svg>
@@ -1237,7 +1213,7 @@ const ReservationForm: React.FC = () => {
       {showDatePicker && (
         <div 
           className="fixed inset-0 z-40" 
-          onClick={() => setShowDatePicker(false)}
+          onClick={() => setShowDatePicker(false)} // Cierra el date picker al hacer click fuera
         />
       )}
     </div>
