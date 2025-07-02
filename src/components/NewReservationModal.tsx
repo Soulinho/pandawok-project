@@ -11,6 +11,7 @@ interface ReservationData {
   tableNumber?: number;
   guests: number | null;
   time: string | null;
+  date: string; // Added date to the ReservationData interface
   name: string;
   notes?: string;
 }
@@ -19,17 +20,28 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
   const [selectedGuests, setSelectedGuests] = useState<number | null>(null);
   const [customGuests, setCustomGuests] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'guests' | 'time' | 'name'>('guests');
+  // ************************************************************
+  // MODIFIED: currentStep now starts at 'date'
+  // ************************************************************
+  const [currentStep, setCurrentStep] = useState<'date' | 'guests' | 'time' | 'name'>('date');
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [notes, setNotes] = useState('');
+  // ************************************************************
+  // NEW STATE: For the selected date
+  // ************************************************************
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
+      // ************************************************************
+      // Reset currentStep to 'date' when modal opens
+      // ************************************************************
+      setCurrentStep('date');
+      setSelectedDate(new Date().toISOString().split('T')[0]); // Default to today's date
       setSelectedGuests(null);
       setCustomGuests('');
       setShowCustomInput(false);
-      setCurrentStep('guests');
       setSelectedTime(null);
       setGuestName('');
       setNotes('');
@@ -61,11 +73,14 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
     }
   };
 
-  const getCurrentDate = () => {
-    const today = new Date();
-    return today.toLocaleDateString('es-ES', { 
+  const getCurrentDateFormatted = () => {
+    // This will format the selectedDate, not necessarily today's date anymore
+    if (!selectedDate) return 'Fecha';
+    const date = new Date(selectedDate);
+    return date.toLocaleDateString('es-ES', { 
       day: 'numeric', 
-      month: 'long' 
+      month: 'long',
+      year: 'numeric' // Added year for clarity, especially if selecting future dates
     });
   };
 
@@ -86,6 +101,15 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
 
   const timeSlots = generateTimeSlots();
 
+  // ************************************************************
+  // NEW FUNCTION: handleContinueFromDate
+  // ************************************************************
+  const handleContinueFromDate = () => {
+    if (selectedDate) {
+      setCurrentStep('guests');
+    }
+  };
+
   const handleContinueFromGuests = () => {
     if (selectedGuests && selectedGuests > 0) {
       setCurrentStep('time');
@@ -103,10 +127,11 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
   };
 
   const handleCreateReservation = () => {
-    const reservationData = {
+    const reservationData: ReservationData = { // Ensure type is ReservationData
       tableNumber,
       guests: selectedGuests,
       time: selectedTime,
+      date: selectedDate, // Include the selected date
       name: guestName,
       notes: notes
     };
@@ -136,34 +161,58 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
           </button>
         </div>
 
-
         <div className="p-6">
           <div className="flex border-b border-gray-200 mb-6">
-            <button className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'guests' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className="text-sm font-medium">{getCurrentDate()}</span>
+            {/* ************************************************************
+                UPDATED: Added a 'Fecha' tab and adjusted others
+            ************************************************************ */}
+            <button
+                onClick={() => setCurrentStep('date')} // Allow going back to date
+                className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'date' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium">{selectedDate ? new Date(selectedDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : 'Fecha'}</span>
             </button>
-            <button className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'time' ? 'border-orange-500 text-orange-600' : currentStep === 'guests' ? 'text-gray-500 border-transparent' : 'text-gray-400 border-transparent'}`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span className="text-sm">{selectedGuests ? `${selectedGuests} Invitado${selectedGuests > 1 ? 's' : ''}` : 'Invitados'}</span>
+            <button
+                onClick={() => selectedDate && setCurrentStep('guests')} // Only allow if date is selected
+                className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'guests' ? 'border-orange-500 text-orange-600' : currentStep === 'date' ? 'text-gray-500 border-transparent' : 'text-gray-400 border-transparent'}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="text-sm">{selectedGuests ? `${selectedGuests} Invitado${selectedGuests > 1 ? 's' : ''}` : 'Invitados'}</span>
             </button>
-            <button className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'name' ? 'border-orange-500 text-orange-600' : 'text-gray-400 border-transparent'}`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sm">{selectedTime || 'Hora'}</span>
+            <button
+                onClick={() => selectedGuests && selectedGuests > 0 && setCurrentStep('time')} // Only allow if guests are selected
+                className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'time' ? 'border-orange-500 text-orange-600' : 'text-gray-400 border-transparent'}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm">{selectedTime || 'Hora'}</span>
             </button>
             <button className="flex items-center space-x-2 px-4 py-2 text-gray-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="text-sm">Nombre</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-sm">Nombre</span>
             </button>
           </div>
+
+          {/* ************************************************************
+              NEW STEP: 'date'
+          ************************************************************ */}
+          {currentStep === 'date' && (
+            <div>
+              <h3 className="text-base font-medium text-gray-900 mb-4">Selecciona la fecha de la reserva</h3>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+              />
+            </div>
+          )}
 
           {currentStep === 'guests' && (
             <div>
@@ -266,9 +315,9 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Resumen de la reserva:</h4>
                   <div className="text-sm text-gray-600 space-y-1">
                     <p><span className="font-medium">Mesa:</span> {tableNumber}</p>
+                    <p><span className="font-medium">Fecha:</span> {getCurrentDateFormatted()}</p> {/* Updated to use selectedDate */}
                     <p><span className="font-medium">Invitados:</span> {selectedGuests}</p>
                     <p><span className="font-medium">Hora:</span> {selectedTime}</p>
-                    <p><span className="font-medium">Fecha:</span> {getCurrentDate()}</p>
                   </div>
                 </div>
               </div>
@@ -282,6 +331,18 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
             >
               Cancelar
             </button>
+            {/* ************************************************************
+                UPDATED: Conditional rendering for continue buttons
+            ************************************************************ */}
+            {currentStep === 'date' && (
+              <button
+                onClick={handleContinueFromDate}
+                disabled={!selectedDate}
+                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Continuar
+              </button>
+            )}
             {currentStep === 'guests' && (
               <button
                 onClick={handleContinueFromGuests}

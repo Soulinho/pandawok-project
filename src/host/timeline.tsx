@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import NewReservationModal from '../components/NewReservationModal';
-import ReservationDetailsPanel from '../components/ReservationDetailsPanel';
+import ReservationDetailsPanel from '../components/ReservationDetailsPanel'; // Importamos el actualizado
 import NuevaMesaModal from './NuevaMesaModal';
+import WalkInModal from '../components/WalkInModal';
+
 
 interface Table {
   id: number;
@@ -12,12 +14,14 @@ interface Table {
   reserved?: boolean;
   reservationInfo?: {
     guestName: string;
-    time: string;
-    partySize: number;
-    salon: string;
+    time: string; // Ej: "4:30 PM"
+    partySize: number; // Ej: 10
+    salon: string; // Ej: "Salón 1 (A)"
+    date: string; // Agregado: Formato YYYY-MM-DD
     notes?: string;
-    origin?: 'Restaurant' | 'Web';
-    createdAt?: string;
+    origin?: 'Restaurant' | 'Web' | 'Walk-in';
+    createdAt?: string; // Ej: "02/07/2025, 10:48"
+    duration?: string; // Agregado: Ej: "3h"
   };
 }
 
@@ -33,13 +37,31 @@ interface NuevaMesaData {
   size: 'small' | 'medium' | 'large';
 }
 
+interface ReservationData {
+    tableNumber?: number;
+    guests: number | null;
+    time: string | null;
+    date: string; // Formato YYYY-MM-DD
+    name: string;
+    notes?: string;
+    // No necesitamos origin aquí, lo asignamos al crear la reserva.
+}
+// ************************************************************
+// FIN INTERFACES
+// ************************************************************
+
 const Timeline: React.FC = () => {
   const [activeTab, setActiveTab] = useState('salon1A');
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
   const [isReservationDetailsOpen, setIsReservationDetailsOpen] = useState(false);
-  const [activeDetailsTab, setActiveDetailsTab] = useState('reserva');
+  const [activeDetailsTab, setActiveDetailsTab] = useState<'reserva' | 'perfil' | 'historial' | 'actividad'>('reserva'); // Tipado para las pestañas
   const [isNuevaMesaModalOpen, setIsNuevaMesaModalOpen] = useState(false);
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
+
+  // ESTADO PARA EL CAMBIO DE MESA
+  const [isChangingTable, setIsChangingTable] = useState(false);
+  const [tableToMove, setTableToMove] = useState<Table | null>(null);
 
   const [salonsData, setSalonsData] = useState<Salon[]>([
     {
@@ -55,22 +77,37 @@ const Timeline: React.FC = () => {
           id: 6,
           shape: 'square',
           size: 'medium',
-          reserved: true,
+          occupied: true, // ESTA DEBERÍA SER 'occupied' para Walk-in
           reservationInfo: {
             guestName: 'Carlos Rodriguez',
-            time: '12:30 pm',
-            partySize: 4,
+            time: '10:07 am',
+            partySize: 3,
             salon: 'Salón 1 (A)',
             notes: 'Asiento al lado de una ventana, por favor.',
-            origin: 'Web',
-            createdAt: '26/06/2025 a las 03:22 pm'
+            origin: 'Walk-in',
+            date: '2025-07-02', // Fecha del walk-in (hoy)
+            createdAt: '02/07/2025, 10:07 am', // Formato de la imagen
+            duration: 'N/A' // Duración para walk-in
           }
         },
         { id: 7, shape: 'square', size: 'medium' },
         { id: 8, shape: 'square', size: 'medium' },
         { id: 9, shape: 'square', size: 'medium' },
         { id: 10, shape: 'square', size: 'large' },
-        { id: 11, shape: 'rectangular', size: 'large' },
+        { id: 11, shape: 'rectangular', size: 'large',
+            reserved: true, // Esta mesa 11 de la imagen es 'reserved'
+            reservationInfo: {
+                guestName: 'asd',
+                time: '4:30 PM',
+                partySize: 10,
+                salon: 'Salón 1 (A)',
+                date: '2025-07-04', // Fecha de la imagen
+                notes: '',
+                origin: 'Restaurant', // Origen de la imagen
+                createdAt: '02/07/2025, 10:48', // Fecha y hora de creación de la imagen
+                duration: '3h' // Duración de la imagen
+            }
+        },
         { id: 12, shape: 'round', size: 'small' },
         { id: 13, shape: 'round', size: 'small' },
         { id: 14, shape: 'round', size: 'small' },
@@ -117,7 +154,27 @@ const Timeline: React.FC = () => {
   ]);
 
   const handleTableClick = (table: Table) => {
-    setSelectedTable(table);
+    if (isChangingTable && tableToMove) {
+      if (table.id === tableToMove.id) {
+        alert('No puedes mover la mesa a sí misma. Selecciona otra mesa libre.');
+        return;
+      }
+      if (table.occupied || table.reserved) {
+          alert('La mesa seleccionada ya está ocupada o reservada.');
+          return;
+      }
+      handleChangeTableConfirm(tableToMove.id, table.id);
+      setIsChangingTable(false);
+      setTableToMove(null);
+      setSelectedTable(null);
+      setIsReservationDetailsOpen(false);
+    } else {
+      setSelectedTable(table);
+      setIsReservationModalOpen(false);
+      setIsWalkInModalOpen(false);
+      // Abrir el panel de detalles solo si la mesa está reservada u ocupada
+      setIsReservationDetailsOpen(!!(table.reserved || table.occupied));
+    }
   };
 
   const handleNewReservation = () => {
@@ -125,14 +182,25 @@ const Timeline: React.FC = () => {
   };
 
   const handleWalkIn = () => {
-    console.log('Walk-in para mesa:', selectedTable?.id);
+    setIsWalkInModalOpen(true);
   };
 
   const handleCloseReservationModal = () => {
     setIsReservationModalOpen(false);
   };
 
-  const handleCreateReservation = (reservationData: any) => {
+  const handleCreateReservation = (reservationData: ReservationData) => { // Usamos la interfaz actualizada
+    const now = new Date();
+    const createdAtFormatted = now.toLocaleDateString('es-ES', { // Formato DD/MM/YYYY
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    }) + ', ' + now.toLocaleTimeString('es-ES', { // Formato HH:MM AM/PM
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true // Asegura AM/PM
+    }).replace('a. m.', 'am').replace('p. m.', 'pm'); // Ajusta para 'am'/'pm' si es necesario
+
     setSalonsData(prevSalons =>
       prevSalons.map(salon =>
         salon.id === activeTab
@@ -143,20 +211,17 @@ const Timeline: React.FC = () => {
                   ? {
                       ...table,
                       reserved: true,
+                      occupied: false,
                       reservationInfo: {
                         guestName: reservationData.name,
-                        time: reservationData.time,
-                        partySize: reservationData.guests,
+                        time: reservationData.time!, // Aseguramos que no sea null
+                        partySize: reservationData.guests!, // Aseguramos que no sea null
                         salon: salon.name,
+                        date: reservationData.date, // Añadimos la fecha
                         notes: reservationData.notes,
-                        origin: 'Restaurant',
-                        createdAt: new Date().toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
+                        origin: 'Restaurant', // Origen por defecto para nuevas reservas
+                        createdAt: createdAtFormatted, // Fecha y hora de creación
+                        duration: '3h' // Puedes hacer esto configurable si es necesario
                       }
                     }
                   : table
@@ -166,35 +231,103 @@ const Timeline: React.FC = () => {
       )
     );
 
-    if (selectedTable?.id === reservationData.tableNumber) {
-      const updatedTable = salonsData
+    // Actualizar selectedTable si la reserva se creó en la mesa actualmente seleccionada
+    const updatedTableAfterCreation = salonsData
         .find(salon => salon.id === activeTab)
         ?.tables.find(table => table.id === reservationData.tableNumber);
-      if (updatedTable) {
+
+    if (updatedTableAfterCreation) {
         setSelectedTable({
-          ...updatedTable,
-          reserved: true,
-          reservationInfo: {
-            guestName: reservationData.name,
-            time: reservationData.time,
-            partySize: reservationData.guests,
-            salon: salonsData.find(salon => salon.id === activeTab)?.name || '',
-            notes: reservationData.notes,
-            origin: 'Restaurant',
-            createdAt: new Date().toLocaleDateString('es-ES', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-          }
+            ...updatedTableAfterCreation,
+            reserved: true,
+            occupied: false,
+            reservationInfo: {
+                guestName: reservationData.name,
+                time: reservationData.time!,
+                partySize: reservationData.guests!,
+                salon: salonsData.find(salon => salon.id === activeTab)?.name || '',
+                date: reservationData.date,
+                notes: reservationData.notes,
+                origin: 'Restaurant',
+                createdAt: createdAtFormatted,
+                duration: '3h'
+            }
         });
-      }
+        setIsReservationDetailsOpen(true); // Abrir el panel de detalles después de crear
     }
+    setIsReservationModalOpen(false);
   };
 
-  const handleUpdateReservation = (tableId: number, updates: Partial<any>) => {
+  const handleConfirmWalkIn = (tableNumber: number, guestName: string, partySize: number, notes: string) => {
+    const now = new Date();
+    const createdAtFormatted = now.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    }) + ', ' + now.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    }).replace('a. m.', 'am').replace('p. m.', 'pm');
+
+    setSalonsData(prevSalons =>
+      prevSalons.map(salon =>
+        salon.id === activeTab
+          ? {
+              ...salon,
+              tables: salon.tables.map(table =>
+                table.id === tableNumber
+                  ? {
+                      ...table,
+                      occupied: true,
+                      reserved: false,
+                      reservationInfo: {
+                        guestName: guestName,
+                        time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }).replace('a. m.', 'am').replace('p. m.', 'pm'),
+                        partySize: partySize,
+                        salon: salon.name,
+                        date: now.toISOString().split('T')[0], // Fecha actual para walk-in
+                        notes: notes,
+                        origin: 'Walk-in',
+                        createdAt: createdAtFormatted,
+                        duration: 'N/A' // Duración no aplicable para walk-in en curso
+                      }
+                    }
+                  : table
+              )
+            }
+          : salon
+      )
+    );
+
+    // Actualizar selectedTable y abrir detalles
+    const updatedTableAfterWalkIn = salonsData
+        .find(salon => salon.id === activeTab)
+        ?.tables.find(t => t.id === tableNumber);
+
+    if (updatedTableAfterWalkIn) {
+        setSelectedTable({
+            ...updatedTableAfterWalkIn,
+            occupied: true,
+            reserved: false,
+            reservationInfo: {
+                guestName: guestName,
+                time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }).replace('a. m.', 'am').replace('p. m.', 'pm'),
+                partySize: partySize,
+                salon: salonsData.find(salon => salon.id === activeTab)?.name || '',
+                date: now.toISOString().split('T')[0],
+                notes: notes,
+                origin: 'Walk-in',
+                createdAt: createdAtFormatted,
+                duration: 'N/A'
+            }
+        });
+        setIsReservationDetailsOpen(true);
+    }
+    setIsWalkInModalOpen(false);
+  };
+
+  const handleUpdateReservation = (tableId: number, updates: Partial<Table['reservationInfo']>) => {
     setSalonsData(prevSalons =>
       prevSalons.map(salon => ({
         ...salon,
@@ -223,18 +356,115 @@ const Timeline: React.FC = () => {
     }
   };
 
+  const handleChangeTableInit = (currentTableId: number) => {
+    const tableToMoveData = salonsData.flatMap(s => s.tables).find(t => t.id === currentTableId);
+    if (tableToMoveData) {
+      setIsChangingTable(true);
+      setTableToMove(tableToMoveData);
+      setIsReservationDetailsOpen(false);
+      setSelectedTable(null);
+      alert(`Selecciona la nueva mesa para mover la reserva de la Mesa ${currentTableId}.`);
+    } else {
+      alert('Error: No se encontró la mesa actual para mover.');
+    }
+  };
+
+  const handleChangeTableConfirm = (currentTableId: number, newTableId: number) => {
+    setSalonsData(prevSalons => {
+      let movedReservationInfo: Table['reservationInfo'] | undefined = undefined;
+      let currentTableOrigin: 'Restaurant' | 'Web' | 'Walk-in' | undefined = undefined;
+      let isTableOccupied: boolean | undefined = undefined; // Para saber si era occupied o reserved
+
+      const updatedSalonsAfterFreeing = prevSalons.map(salon => ({
+        ...salon,
+        tables: salon.tables.map(table => {
+          if (table.id === currentTableId) {
+            movedReservationInfo = table.reservationInfo;
+            currentTableOrigin = table.reservationInfo?.origin;
+            isTableOccupied = table.occupied; // Guardar si estaba ocupada o reservada
+            return { ...table, occupied: false, reserved: false, reservationInfo: undefined };
+          }
+          return table;
+        })
+      }));
+
+      const updatedSalonsAfterOccupying = updatedSalonsAfterFreeing.map(salon => ({
+        ...salon,
+        tables: salon.tables.map(table => {
+          if (table.id === newTableId && movedReservationInfo) {
+            const newSalon = updatedSalonsAfterFreeing.find(s => s.tables.some(t => t.id === newTableId));
+            const updatedReservationInfo = {
+              ...movedReservationInfo!, // Aseguramos que no es undefined
+              salon: newSalon ? newSalon.name : movedReservationInfo!.salon // Actualiza el salón en la info
+            };
+
+            return {
+              ...table,
+              // Mantiene el estado original (occupied/reserved) al mover
+              occupied: isTableOccupied,
+              reserved: !isTableOccupied,
+              reservationInfo: updatedReservationInfo
+            };
+          }
+          return table;
+        })
+      }));
+      return updatedSalonsAfterOccupying;
+    });
+
+    alert(`Comensal movido de Mesa ${currentTableId} a Mesa ${newTableId}.`);
+  };
+
+  const handleFinalizeWalkIn = (tableId: number) => {
+    setSalonsData(prevSalons =>
+      prevSalons.map(salon => ({
+        ...salon,
+        tables: salon.tables.map(table =>
+          table.id === tableId
+            ? { ...table, occupied: false, reserved: false, reservationInfo: undefined }
+            : table
+        )
+      }))
+    );
+    setSelectedTable(null);
+    setIsReservationDetailsOpen(false);
+    alert(`Walk-in de Mesa ${tableId} finalizado.`);
+  };
+
+  // NUEVA FUNCIÓN: Eliminar Reserva
+  const handleDeleteReservation = (tableId: number) => {
+    setSalonsData(prevSalons =>
+      prevSalons.map(salon => ({
+        ...salon,
+        tables: salon.tables.map(table =>
+          table.id === tableId
+            ? { ...table, occupied: false, reserved: false, reservationInfo: undefined }
+            : table
+        )
+      }))
+    );
+    setSelectedTable(null); // Deseleccionar la mesa
+    setIsReservationDetailsOpen(false); // Cerrar el panel de detalles
+    alert(`Reserva de Mesa ${tableId} eliminada.`);
+  };
+
   const getTableStyle = (table: Table) => {
     const baseClasses = "flex items-center justify-center text-white font-medium cursor-pointer transition-all duration-200 hover:scale-105";
 
     let shapeClasses = "";
     let sizeClasses = "";
-    let bgColor = "bg-[#3C2022]";
+    let bgColor = "bg-[#3C2022]"; // Default: Available
 
     if (table.reserved) {
-      bgColor = "bg-[#8B4513]";
+      bgColor = "bg-[#8B4513]"; // Reserved
     } else if (table.occupied) {
-      bgColor = "bg-red-600";
+      bgColor = "bg-red-600"; // Occupied (e.g., by walk-in)
     }
+
+    const isSelected = selectedTable?.id === table.id;
+    const isTargetTable = isChangingTable && !table.occupied && !table.reserved;
+    const selectionClass = isSelected ? "ring-2 ring-orange-400 ring-offset-2 ring-offset-slate-800" : "";
+    const targetClass = isTargetTable ? "ring-2 ring-green-400 ring-offset-2 ring-offset-slate-800 animate-pulse" : "";
 
     switch (table.shape) {
       case 'round':
@@ -260,10 +490,7 @@ const Timeline: React.FC = () => {
         break;
     }
 
-    const isSelected = selectedTable?.id === table.id;
-    const selectionClass = isSelected ? "ring-2 ring-orange-400 ring-offset-2" : "";
-
-    return `${baseClasses} ${shapeClasses} ${sizeClasses} ${selectionClass} ${bgColor}`;
+    return `${baseClasses} ${shapeClasses} ${sizeClasses} ${selectionClass} ${targetClass} ${bgColor}`;
   };
 
   const getTableGridPosition = (tableId: number) => {
@@ -296,21 +523,14 @@ const Timeline: React.FC = () => {
 
   const currentSalon = salonsData.find(salon => salon.id === activeTab);
 
-  const handleReservationCardClick = () => {
-    if (selectedTable?.reserved && selectedTable?.reservationInfo) {
-      setIsReservationDetailsOpen(true);
-    }
-  };
-
   const handleOpenNuevaMesaModal = () => {
     setIsNuevaMesaModalOpen(true);
   };
 
   const handleAddNewTable = (tableData: NuevaMesaData) => {
-    const salon = salonsData.find(s => s.id === tableData.salonId);
-    const newTableId = salon && salon.tables.length > 0 
-      ? Math.max(...salon.tables.map(t => t.id)) + 1 
-      : 1;
+    const allTableIds = salonsData.flatMap(s => s.tables.map(t => t.id));
+    const maxId = allTableIds.length > 0 ? Math.max(...allTableIds) : 0;
+    const newTableId = maxId + 1;
 
     setSalonsData(prevSalons =>
       prevSalons.map(salon =>
@@ -333,200 +553,210 @@ const Timeline: React.FC = () => {
     if (tableData.salonId !== activeTab) {
       setActiveTab(tableData.salonId);
     }
+    setIsNuevaMesaModalOpen(false);
   };
 
   return (
     <div className="h-screen bg-slate-800 text-white flex flex-col">
       <Header />
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col border-r border-slate-700" style={{ backgroundColor: '#211B17', width: '477px' }}>
-          <div className="p-4 pb-2">
-            <div className="relative">
-              <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Buscar"
-                className="w-full text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 border border-gray-600"
-                style={{ backgroundColor: '#4c4037' }}
-              />
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        <div
+          className={`flex flex-col border-r border-slate-700 bg-[#211B17]
+          w-full md:w-[400px] lg:w-[477px] overflow-y-auto
+          ${isReservationDetailsOpen && selectedTable && (selectedTable.reserved || selectedTable.occupied) ? '' : 'flex-grow md:flex-grow-0'}`}
+        >
+          {isReservationDetailsOpen && selectedTable && (selectedTable.reserved || selectedTable.occupied) ? (
+            <ReservationDetailsPanel
+              isOpen={isReservationDetailsOpen}
+              onClose={() => {
+                  setIsReservationDetailsOpen(false);
+                  setSelectedTable(null);
+              }}
+              table={selectedTable}
+              activeTab={activeDetailsTab}
+              setActiveTab={setActiveDetailsTab}
+              onUpdateReservation={handleUpdateReservation}
+              onFinalizeWalkIn={handleFinalizeWalkIn}
+              onChangeTable={handleChangeTableInit}
+              onDeleteReservation={handleDeleteReservation} 
+            />
+          ) : (
+            <div className="flex flex-col flex-1">
+                <div className="p-4 pb-2">
+                    <div className="relative">
+                        <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Buscar"
+                            className="w-full text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 border border-gray-600"
+                            style={{ backgroundColor: '#4c4037' }}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 pt-2 flex flex-col">
+                    <div className="flex-1">
+                        {isChangingTable && tableToMove && (
+                            <div className="bg-yellow-800 text-white p-3 rounded-lg mb-4 text-center animate-pulse">
+                                <p className="font-bold">Modo: Mover Mesa {tableToMove.id}</p>
+                                <p className="text-sm">Haz clic en una mesa libre para mover la reserva.</p>
+                                <button
+                                    onClick={() => { setIsChangingTable(false); setTableToMove(null); }}
+                                    className="mt-2 text-xs underline hover:text-yellow-200"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        )}
+
+                        {selectedTable ? (
+                            // La lógica para mostrar el resumen de la reserva aquí solo se activa si
+                            // el panel de detalles NO está abierto y la mesa está reservada/ocupada.
+                            // Si el panel de detalles está abierto, se encarga el componente ReservationDetailsPanel.
+                            !isReservationDetailsOpen && (selectedTable.reserved || selectedTable.occupied) ? (
+                                <div
+                                    className="rounded-lg p-4 space-y-4 cursor-pointer hover:bg-opacity-90 transition-all duration-200"
+                                    style={{ backgroundColor: '#F7F7ED' }}
+                                    onClick={() => setIsReservationDetailsOpen(true)}
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium text-lg
+                                          ${selectedTable.reserved ? 'bg-orange-500' : 'bg-red-600'}`
+                                        }>
+                                            {selectedTable.reservationInfo?.guestName.split(' ').map(n => n[0]).join('') || '?'}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-lg text-gray-900">{selectedTable.reservationInfo?.guestName || 'N/A'}</h3>
+                                            <p className="text-sm text-gray-500">
+                                                 {selectedTable.reserved ? 'Reservado' : 'Ocupado (Walk-in)'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3 text-sm text-gray-700">
+                                        <div className="flex items-center space-x-2">
+                                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0114 0z" /></svg>
+                                            <span>{selectedTable.reservationInfo?.time}</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                            <span>{selectedTable.reservationInfo?.partySize}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center">
+                                    <h3 className="text-lg font-medium mb-2">Mesa {selectedTable.id}</h3>
+                                    <p className="text-gray-300 text-sm mb-4">Mesa disponible</p>
+                                </div>
+                            )
+                        ) : (
+                            <div className="text-center text-gray-400 mt-8">
+                                <svg className="w-16 h-16 mx-auto mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                <p>Selecciona una mesa o agrega una nueva</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {selectedTable && !selectedTable.reserved && !selectedTable.occupied && !isChangingTable && (
+                        <div className="space-y-3 mt-4">
+                            <button
+                                onClick={handleNewReservation}
+                                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                <span>Nueva reserva</span>
+                            </button>
+
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={handleWalkIn}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    <span>Sentar Walk-in</span>
+                                </button>
+
+                                <button className="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-3 rounded-lg transition-colors">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 bg-slate-100 flex flex-col overflow-y-auto">
+          <div className="bg-white border-b border-gray-200">
+            <div className="flex space-x-0 items-center overflow-x-auto whitespace-nowrap">
+              {salonsData.map((salon) => (
+                <button
+                  key={salon.id}
+                  onClick={() => {
+                    setActiveTab(salon.id);
+                    if (!isChangingTable) {
+                        setSelectedTable(null);
+                        setIsReservationDetailsOpen(false);
+                    }
+                  }}
+                  className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-r border-gray-200 transition-colors ${
+                    activeTab === salon.id
+                      ? 'bg-gray-50 text-gray-900 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {salon.name}
+                </button>
+              ))}
+              <button
+                onClick={handleOpenNuevaMesaModal}
+                className="ml-auto mr-4 px-4 py-2 bg-[#FF6900] text-white font-medium rounded-md hover:bg-orange-600 transition-colors flex items-center shadow-md flex-shrink-0"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>Nueva mesa</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 pt-2 flex flex-col">
-            <div className="flex-1">
-              {selectedTable ? (
-                <div className="text-white">
-                  {selectedTable.reserved && selectedTable.reservationInfo ? (
-                    <div
-                      className="rounded-lg p-4 space-y-4 cursor-pointer hover:bg-opacity-90 transition-all duration-200"
-                      style={{ backgroundColor: '#F7F7ED' }}
-                      onClick={handleReservationCardClick}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-medium text-lg">
-                          {selectedTable.reservationInfo.guestName.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-lg text-orange-400">{selectedTable.reservationInfo.guestName}</h3>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 text-sm">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0114 0z" />
-                            </svg>
-                            <span className="text-gray-700">{selectedTable.reservationInfo.time}</span>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <span className="text-gray-700">{selectedTable.reservationInfo.partySize}</span>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                            </svg>
-                            <span className="text-gray-700">Mesa {selectedTable.id}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                          <span className="text-gray-700">{selectedTable.reservationInfo.salon}</span>
-                        </div>
-
-                        {selectedTable.reservationInfo.notes && (
-                          <div className="flex items-start space-x-2">
-                            <svg className="w-4 h-4 mt-0.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="text-gray-700 leading-relaxed">{selectedTable.reservationInfo.notes}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <h3 className="text-lg font-medium mb-2">Mesa {selectedTable.id}</h3>
-                      <p className="text-gray-300 text-sm mb-4">Mesa disponible</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 mt-8">
-                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <p>No existen reservas para fecha seleccionada</p>
-                </div>
-              )}
-            </div>
-
-            {selectedTable && !selectedTable.reserved && (
-              <div className="space-y-3 mt-4">
-                <button
-                  onClick={handleNewReservation}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Nueva reserva</span>
-                </button>
-
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleWalkIn}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+          <div className="p-4 md:p-8 h-full overflow-x-auto">
+            {currentSalon && currentSalon.tables.length > 0 ? (
+              <div
+                className="grid grid-cols-8 grid-rows-8 gap-4 h-full min-w-[700px] md:min-w-0 md:max-w-4xl md:mx-auto"
+              >
+                {currentSalon.tables.map((table) => (
+                  <div
+                    key={table.id}
+                    className={`${getTableStyle(table)} ${getTableGridPosition(table.id)}`}
+                    onClick={() => handleTableClick(table)}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span>Sentar Walk-in</span>
-                  </button>
-
-                  <button className="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-3 rounded-lg transition-colors">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </button>
-                </div>
+                    {table.id}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <p>No hay mesas configuradas para este salón</p>
               </div>
             )}
           </div>
         </div>
-
-        {!isReservationDetailsOpen ? (
-          <div className="flex-1 bg-slate-100 flex flex-col">
-            <div className="bg-white border-b border-gray-200">
-              <div className="flex space-x-0 items-center">
-                {salonsData.map((salon) => (
-                  <button
-                    key={salon.id}
-                    onClick={() => setActiveTab(salon.id)}
-                    className={`px-6 py-3 text-sm font-medium border-r border-gray-200 transition-colors ${
-                      activeTab === salon.id
-                        ? 'bg-gray-50 text-gray-900 border-b-2 border-blue-500'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {salon.name}
-                  </button>
-                ))}
-                <button
-                  onClick={handleOpenNuevaMesaModal}
-                  className="ml-2 px-4 py-2 bg-[#FF6900] text-white font-medium rounded-md hover:bg-orange-600 transition-colors flex items-center shadow-md"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Nueva mesa</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-8 h-full">
-              {currentSalon && currentSalon.tables.length > 0 ? (
-                <div className="grid grid-cols-8 grid-rows-8 gap-4 h-full max-w-4xl mx-auto">
-                  {currentSalon.tables.map((table) => (
-                    <div
-                      key={table.id}
-                      className={`${getTableStyle(table)} ${getTableGridPosition(table.id)}`}
-                      onClick={() => handleTableClick(table)}
-                    >
-                      {table.id}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  <p>No hay mesas configuradas para este salón</p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <ReservationDetailsPanel
-            isOpen={isReservationDetailsOpen}
-            onClose={() => setIsReservationDetailsOpen(false)}
-            table={selectedTable}
-            activeTab={activeDetailsTab}
-            setActiveTab={setActiveDetailsTab}
-            onUpdateReservation={handleUpdateReservation}
-          />
-        )}
       </div>
 
+      {/* Modales */}
       <NewReservationModal
         isOpen={isReservationModalOpen}
         onClose={handleCloseReservationModal}
@@ -539,6 +769,13 @@ const Timeline: React.FC = () => {
         onClose={() => setIsNuevaMesaModalOpen(false)}
         onAddTable={handleAddNewTable}
         salons={salonsData}
+      />
+
+      <WalkInModal
+        isOpen={isWalkInModalOpen}
+        onClose={() => setIsWalkInModalOpen(false)}
+        tableNumber={selectedTable?.id}
+        onConfirmWalkIn={handleConfirmWalkIn}
       />
     </div>
   );
