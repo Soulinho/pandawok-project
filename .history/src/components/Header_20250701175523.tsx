@@ -58,6 +58,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
     setIsDropdownOpen(false);
   };
 
+  // Agregar useEffect para manejar clics fuera del menú
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -85,6 +86,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
           </svg>
         </button>
 
+        {/* Menú desplegable con nuevo color de fondo y bordes */}
         {isMenuOpen && (
           <div 
             className="absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg z-50" 
@@ -230,6 +232,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
         </div>
       </div>
 
+      {/* Modal de Nueva Reserva */}
       <NewReservationModal
         isOpen={isNewReservationModalOpen}
         onClose={() => setIsNewReservationModalOpen(false)}
@@ -239,6 +242,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
         }}
       />
 
+      {/* Sidebar de Bloqueos */}
       <BlockSidebar
         isOpen={isBlockSidebarOpen}
         onClose={() => setIsBlockSidebarOpen(false)}

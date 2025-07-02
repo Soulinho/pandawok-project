@@ -58,24 +58,10 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
     setIsDropdownOpen(false);
   };
 
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (isMenuOpen && !target.closest('.menu-container')) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMenuOpen]);
-
   return (
 
     <div className="flex flex-col md:flex-row items-center justify-between p-2 md:p-4" style={{ backgroundColor: '#3C2022' }}>
-      <div className="flex items-center space-x-2 md:space-x-4 w-full justify-between md:justify-start md:w-auto relative menu-container">
+      <div className="flex items-center space-x-2 md:space-x-4 w-full justify-between md:justify-start md:w-auto relative">
         <button 
           className="p-2 md:block" 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -85,17 +71,12 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
           </svg>
         </button>
 
+        {/* Menú desplegable */}
         {isMenuOpen && (
-          <div 
-            className="absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg z-50" 
-            style={{ 
-              backgroundColor: '#3C2022',
-              border: '1px solid #F7F7ED'
-            }}
-          >
+          <div className="absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg z-50" style={{ backgroundColor: '#211B17' }}>
             <a 
-              href="/timeline" 
-              className="block px-4 py-2 text-white hover:bg-orange-500/20 transition-colors text-sm border-b border-[#F7F7ED]"
+              href="/" 
+              className="block px-4 py-2 text-white hover:bg-orange-500/20 transition-colors text-sm"
             >
               Planos de mesa
             </a>
@@ -230,6 +211,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
         </div>
       </div>
 
+      {/* Modal de Nueva Reserva */}
       <NewReservationModal
         isOpen={isNewReservationModalOpen}
         onClose={() => setIsNewReservationModalOpen(false)}
@@ -239,6 +221,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
         }}
       />
 
+      {/* Sidebar de Bloqueos */}
       <BlockSidebar
         isOpen={isBlockSidebarOpen}
         onClose={() => setIsBlockSidebarOpen(false)}

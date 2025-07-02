@@ -49,8 +49,8 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F7F7ED' }}>
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="bg-white w-full max-w-md rounded-xl shadow-lg overflow-hidden">
+              <div className="flex-1 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-white w-full max-w-md rounded-xl shadow-lg overflow-hidden mx-2 sm:mx-0">
           <div className="py-4 flex justify-center" style={{ backgroundColor: '#211B17' }}>
             <img src={logo} alt="PandaWok Logo" className="h-16 w-auto object-contain" />
           </div>

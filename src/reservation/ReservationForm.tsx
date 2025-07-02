@@ -143,118 +143,151 @@ const ReservationForm: React.FC = () => {
     setShowRequestForm(true);
   };
 
-  // Manejar click en la flecha de "Volver" en el formulario de solicitud
-  const handleBackToSelection = () => {
-    setShowRequestForm(false);
-    // Reinicia el número de personas a un valor por defecto si es necesario al volver
-    setSelectedPeople('2');
+  const getFirstDayOfMonth = (date: Date) => {
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    return firstDay === 0 ? 6 : firstDay - 1;
   };
 
-  // Manejar click en "Modificar reserva" (desde la pantalla de éxito)
-  const handleModifyReservation = () => {
-    // Inicializar modifiedData con los valores actuales para pre-llenar el formulario de modificación
-    setModifiedData({
-      people: selectedPeople,
-      date: selectedDate ? formatDateSpanish(selectedDate) : '', // Usar formato español para la UI
-      time: selectedTime,
-      phone: getPhoneNumber(), // Asegúrate de obtener solo el número
-      email: formData.email,
-      comments: formData.comments
-    });
-    setShowSuccessScreen(false);
-    setShowModifyForm(true);
+  const formatDateSpanish = (day: number, month: number, year: number) => {
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const date = new Date(year, month, day);
+    return `${days[date.getDay()]}, ${months[month]} ${day}`;
   };
 
-  // Manejar envío de la reserva (POST a la API)
-  const handleConfirmReservation = async () => {
-    if (!formData.acceptTerms) {
-      setApiError('Debes aceptar los términos y condiciones para continuar.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setApiError(null);
-
-    // ¡NUEVO! Validar que selectedDate no sea null antes de intentar usarlo
-    if (!selectedDate) {
-      setApiError('Por favor, selecciona una fecha para la reserva.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    const reservationData = {
-      nombre: formData.firstName,
-      apellido: formData.lastName,
-      correo_electronico: formData.email,
-      telefono: formData.phone,
-      cantidad_personas: parseInt(selectedPeople),
-      // ¡CAMBIO CLAVE AQUÍ! Usamos selectedDate (que es un objeto Date)
-      fecha_reserva: formatDateForBackend(selectedDate), 
-      horario: formatTimeForBackend(selectedTime),
-      notas: formData.comments,
-      // Aquí podrías agregar un campo para el cumpleaños si se ingresa
-      // cumpleaños_dia: ...
-      // cumpleaños_mes: ...
-    };
-
-    console.log("Enviando datos:", reservationData); // Para depuración
-
-    try {
-      // Reemplaza con tu URL de la API real
-      const response = await axios.post('http://localhost:5000/api/reservas', reservationData);
-      console.log('Reserva creada exitosamente:', response.data);
-      setShowConfirmForm(false); // Cierra la pantalla de confirmación
-      setShowSuccessScreen(true); // Muestra la pantalla de éxito
-      // Opcional: Limpiar formData si la reserva fue exitosa y no se necesita persistir los datos
-      setFormData({
-        firstName: '',
-        lastName: '',
-        phone: '',
-        email: '',
-        comments: '',
-        acceptTerms: false
-      });
-      setSelectedDate(null); // Limpiar la fecha seleccionada también
-      setSelectedPeople('2'); // Reiniciar personas
-      setSelectedTime('12:30 pm'); // Reiniciar hora
-    } catch (error: any) {
-      console.error('Error al crear reserva:', error);
-      setApiError(error.response?.data?.error || 'Error al crear la reserva. Por favor, inténtalo de nuevo.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // --- Funciones para el Calendario ---
-  const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
-
-  const handlePrevMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
-
-  // Modifica handleDateSelect para guardar un objeto Date
   const handleDateSelect = (day: number) => {
-    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    setSelectedDate(newDate); // ¡CAMBIO AQUÍ! Guardamos el objeto Date
+    const selectedDateFormatted = formatDateSpanish(day, currentMonth.getMonth(), currentMonth.getFullYear());
+    
+    if (showModifyForm) {
+      setModifiedData(prev => ({ ...prev, date: selectedDateFormatted }));
+    } else {
+      setSelectedDate(selectedDateFormatted);
+    }
+    
     setShowDatePicker(false);
   };
 
-  // Modifica isSelected para comparar objetos Date
-  const isSelected = (day: number, month: number, year: number) => { // Recibe componentes de fecha
-    if (!selectedDate) return false; // Si no hay fecha seleccionada, no puede ser seleccionada
-
-    const dateToCompare = new Date(year, month, day); // Crea un objeto Date para el día del calendario
-    // Compara las fechas ignorando la hora
-    return selectedDate.getFullYear() === dateToCompare.getFullYear() &&
-           selectedDate.getMonth() === dateToCompare.getMonth() &&
-           selectedDate.getDate() === dateToCompare.getDate();
+  const handleMonthYearSelect = (month: number, year: number) => {
+    setCurrentMonth(new Date(year, month));
+    setShowMonthYearPicker(false);
   };
 
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      if (direction === 'prev') {
+        newMonth.setMonth(prev.getMonth() - 1);
+      } else {
+        newMonth.setMonth(prev.getMonth() + 1);
+      }
+      return newMonth;
+    });
+  };
+
+  const renderMonthYearPicker = () => {
+    const currentYear = currentMonth.getFullYear();
+    const currentMonthIndex = currentMonth.getMonth();
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setShowMonthYearPicker(false)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h3 className="text-lg font-semibold text-gray-800">Seleccionar fecha</h3>
+          <div className="w-7"></div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Año</label>
+          <div className="grid grid-cols-5 gap-2">
+            {years.map(year => (
+              <button
+                key={year}
+                onClick={() => handleMonthYearSelect(currentMonthIndex, year)}
+                className={`p-2 rounded-lg text-sm transition-colors ${
+                  year === currentYear
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Mes</label>
+          <div className="grid grid-cols-3 gap-2">
+            {months.map((month, index) => (
+              <button
+                key={month}
+                onClick={() => handleMonthYearSelect(index, currentYear)}
+                className={`p-2 rounded-lg text-sm transition-colors ${
+                  index === currentMonthIndex
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
+                }`}
+              >
+                {month}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const getAvailableDates = () => {
+    const today = new Date();
+    const maxDate = new Date();
+    maxDate.setMonth(today.getMonth() + 1);
+    
+    return { today, maxDate };
+  };
+
+  React.useEffect(() => {
+    if (!selectedDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const formattedDate = formatDateSpanish(tomorrow.getDate(), tomorrow.getMonth(), tomorrow.getFullYear());
+      setSelectedDate(formattedDate);
+    }
+  }, []);
+
+ 
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showCountryDropdown) {
+        const target = event.target as HTMLElement;
+        const dropdown = target.closest('.country-dropdown-container');
+        if (!dropdown) {
+          setShowCountryDropdown(false);
+        }
+      }
+      
+      if (showDatePicker) {
+        const target = event.target as HTMLElement;
+        const datePicker = target.closest('.date-picker-container');
+        if (!datePicker) {
+          setShowDatePicker(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCountryDropdown, showDatePicker]);
 
   const renderCalendar = () => {
     const year = currentMonth.getFullYear();
@@ -266,18 +299,35 @@ const ReservationForm: React.FC = () => {
     for (let i = 0; i < startDay; i++) {
       days.push(<div key={`empty-${i}`} className="p-2 text-center text-gray-400"></div>);
     }
-
-    const today = new Date();
-    // Normalizamos 'today' para comparar solo la fecha (sin hora)
-    today.setHours(0, 0, 0, 0); 
-
-    for (let i = 1; i <= totalDays; i++) {
-      const dayDate = new Date(year, month, i);
-      dayDate.setHours(0, 0, 0, 0); // Normalizamos para comparar con today
-
-      const isDisabled = dayDate < today; // Si el día es anterior a hoy
-      const selected = isSelected(i, month, year); // Llama a la isSelected modificada
-
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      const isToday = currentDate.toDateString() === today.toDateString();
+      const isPast = currentDate < today;
+      const isFuture = currentDate > maxDate;
+      const isAvailable = !isPast && !isFuture;
+      
+      const isSelected = selectedDate && (() => {
+        try {
+          const parts = selectedDate.split(', ');
+          if (parts.length === 2) {
+            const dayPart = parts[1].split(' ');
+            const selectedDay = parseInt(dayPart[1]);
+            const selectedMonthName = dayPart[0];
+            
+            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const selectedMonthIndex = monthNames.indexOf(selectedMonthName);
+            
+            return day === selectedDay && 
+                   currentMonth.getMonth() === selectedMonthIndex &&
+                   currentMonth.getFullYear() === currentMonth.getFullYear();
+          }
+        } catch (error) {
+          console.log('Error parsing date:', error);
+        }
+        return false;
+      })();
+      
       days.push(
         <button
           key={i}
@@ -296,37 +346,110 @@ const ReservationForm: React.FC = () => {
       );
     }
 
-    const monthNames = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ];
-    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
     return (
-      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-100 rounded-full">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <span className="font-semibold text-lg text-gray-800">
-            {monthNames[month]} {year}
-          </span>
-          <button onClick={handleNextMonth} className="p-2 hover:bg-gray-100 rounded-full">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-500 mb-2">
-          {dayNames.map(day => (
-            <div key={day}>{day}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {days}
-        </div>
+      <div className="absolute top-full left-0 right-0 sm:right-auto mt-2 bg-white border border-gray-200 rounded-xl shadow-lg p-3 sm:p-4 z-50 w-full sm:w-72 max-w-sm">
+        {showMonthYearPicker ? (
+          <div className="bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={() => setShowMonthYearPicker(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h3 className="text-sm sm:text-base font-semibold text-gray-800">Seleccionar fecha</h3>
+              <div className="w-6"></div>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Año</label>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-1">
+                {[today.getFullYear(), today.getFullYear() + 1].map(year => (
+                  <button
+                    key={year}
+                    onClick={() => handleMonthYearSelect(currentMonth.getMonth(), year)}
+                    className={`p-1.5 rounded text-xs transition-colors ${
+                      year === currentMonth.getFullYear()
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Mes</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map((month, index) => {
+                  const monthDate = new Date(currentMonth.getFullYear(), index, 1);
+                  const isValidMonth = monthDate >= new Date(today.getFullYear(), today.getMonth(), 1) && 
+                                     monthDate <= new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+                  
+                  if (!isValidMonth) return null;
+                  
+                  return (
+                    <button
+                      key={month}
+                      onClick={() => handleMonthYearSelect(index, currentMonth.getFullYear())}
+                      className={`p-1.5 rounded text-xs transition-colors ${
+                        index === currentMonth.getMonth()
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
+                      }`}
+                    >
+                      {month}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={() => navigateMonth('prev')}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowMonthYearPicker(true)}
+                className="text-sm sm:text-base font-semibold text-gray-800 capitalize hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+              >
+                {monthName} {currentMonth.getFullYear()}
+              </button>
+              <button
+                onClick={() => navigateMonth('next')}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
+              {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
+                <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-0.5">
+              {days}
+            </div>
+          </>
+        )}
       </div>
     );
   };

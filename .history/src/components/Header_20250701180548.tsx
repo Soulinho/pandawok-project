@@ -230,6 +230,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
         </div>
       </div>
 
+      {/* Modal de Nueva Reserva */}
       <NewReservationModal
         isOpen={isNewReservationModalOpen}
         onClose={() => setIsNewReservationModalOpen(false)}
@@ -239,6 +240,7 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
         }}
       />
 
+      {/* Sidebar de Bloqueos */}
       <BlockSidebar
         isOpen={isBlockSidebarOpen}
         onClose={() => setIsBlockSidebarOpen(false)}

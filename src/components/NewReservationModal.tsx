@@ -142,59 +142,51 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg shadow-xl w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Nueva Reserva</h2>
+        <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Nueva Reserva</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
+
         <div className="p-6">
           <div className="flex border-b border-gray-200 mb-6">
-            {/* ************************************************************
-                UPDATED: Added a 'Fecha' tab and adjusted others
-            ************************************************************ */}
-            <button
-                onClick={() => setCurrentStep('date')} // Allow going back to date
-                className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'date' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm font-medium">{selectedDate ? new Date(selectedDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : 'Fecha'}</span>
+            <button className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'guests' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-medium">{getCurrentDate()}</span>
             </button>
-            <button
-                onClick={() => selectedDate && setCurrentStep('guests')} // Only allow if date is selected
-                className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'guests' ? 'border-orange-500 text-orange-600' : currentStep === 'date' ? 'text-gray-500 border-transparent' : 'text-gray-400 border-transparent'}`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span className="text-sm">{selectedGuests ? `${selectedGuests} Invitado${selectedGuests > 1 ? 's' : ''}` : 'Invitados'}</span>
+            <button className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'time' ? 'border-orange-500 text-orange-600' : currentStep === 'guests' ? 'text-gray-500 border-transparent' : 'text-gray-400 border-transparent'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="text-sm">{selectedGuests ? `${selectedGuests} Invitado${selectedGuests > 1 ? 's' : ''}` : 'Invitados'}</span>
             </button>
-            <button
-                onClick={() => selectedGuests && selectedGuests > 0 && setCurrentStep('time')} // Only allow if guests are selected
-                className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'time' ? 'border-orange-500 text-orange-600' : 'text-gray-400 border-transparent'}`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm">{selectedTime || 'Hora'}</span>
+            <button className={`flex items-center space-x-2 px-4 py-2 border-b-2 ${currentStep === 'name' ? 'border-orange-500 text-orange-600' : 'text-gray-400 border-transparent'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm">{selectedTime || 'Hora'}</span>
             </button>
             <button className="flex items-center space-x-2 px-4 py-2 text-gray-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span className="text-sm">Nombre</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="text-sm">Nombre</span>
             </button>
           </div>
 
@@ -216,22 +208,22 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
 
           {currentStep === 'guests' && (
             <div>
-              <h3 className="text-base font-medium text-gray-900 mb-4">Cantidad de comensales</h3>
+              <h3 className="text-sm sm:text-base font-medium text-gray-900 mb-3 sm:mb-4">Cantidad de comensales</h3>
               <div className="space-y-2">
                 {predefinedOptions.map((guests) => (
                   <button
                     key={guests}
                     onClick={() => handleGuestSelection(guests)}
-                    className={`w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors ${
+                    className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors ${
                       selectedGuests === guests ? 'bg-orange-50 border-orange-300' : ''
                     }`}
                   >
-                    <span className="text-gray-700">{guests} Invitado{guests > 1 ? 's' : ''}</span>
+                    <span className="text-sm sm:text-base text-gray-700">{guests} Invitado{guests > 1 ? 's' : ''}</span>
                   </button>
                 ))}
                 
                 {showCustomInput ? (
-                  <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
                     <label htmlFor="customGuests" className="block text-sm font-medium text-gray-700 mb-2">
                       Número personalizado de invitados:
                     </label>
@@ -242,7 +234,7 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
                       max="50"
                       value={customGuests}
                       onChange={handleCustomGuestsChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                      className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
                       placeholder="Ingresa el número"
                       autoFocus
                     />
@@ -250,9 +242,9 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
                 ) : (
                   <button
                     onClick={handleCustomGuests}
-                    className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors text-orange-600"
+                    className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors text-orange-600"
                   >
-                    <span>Otro número de invitados...</span>
+                    <span className="text-sm sm:text-base">Otro número de invitados...</span>
                   </button>
                 )}
               </div>
@@ -261,17 +253,17 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
 
           {currentStep === 'time' && (
             <div>
-              <h3 className="text-base font-medium text-gray-900 mb-4">Selecciona la hora</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <h3 className="text-sm sm:text-base font-medium text-gray-900 mb-3 sm:mb-4">Selecciona la hora</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                 {timeSlots.map((time) => (
                   <button
                     key={time}
                     onClick={() => handleTimeSelection(time)}
-                    className={`px-4 py-3 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors text-center ${
+                    className={`px-2 sm:px-4 py-2 sm:py-3 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors text-center ${
                       selectedTime === time ? 'bg-orange-50 border-orange-300 text-orange-600' : 'text-gray-700'
                     }`}
                   >
-                    {time}
+                    <span className="text-xs sm:text-sm">{time}</span>
                   </button>
                 ))}
               </div>
@@ -280,10 +272,10 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
 
           {currentStep === 'name' && (
             <div>
-              <h3 className="text-base font-medium text-gray-900 mb-4">Información del cliente</h3>
-              <div className="space-y-4">
+              <h3 className="text-sm sm:text-base font-medium text-gray-900 mb-3 sm:mb-4">Información del cliente</h3>
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Nombre del cliente *
                   </label>
                   <input
@@ -291,14 +283,14 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
                     id="guestName"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                    className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
                     placeholder="Ingresa el nombre del cliente"
                     autoFocus
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Notas especiales (opcional)
                   </label>
                   <textarea
@@ -306,14 +298,14 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
+                    className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
                     placeholder="Ej: Mesa junto a la ventana, celebración especial..."
                   />
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mt-3 sm:mt-4">
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Resumen de la reserva:</h4>
-                  <div className="text-sm text-gray-600 space-y-1">
+                  <div className="text-xs sm:text-sm text-gray-600 space-y-1">
                     <p><span className="font-medium">Mesa:</span> {tableNumber}</p>
                     <p><span className="font-medium">Fecha:</span> {getCurrentDateFormatted()}</p> {/* Updated to use selectedDate */}
                     <p><span className="font-medium">Invitados:</span> {selectedGuests}</p>
@@ -324,10 +316,10 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
             </div>
           )}
 
-          <div className="flex space-x-3 mt-6 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full sm:flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
             >
               Cancelar
             </button>
@@ -347,7 +339,7 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
               <button
                 onClick={handleContinueFromGuests}
                 disabled={!selectedGuests || selectedGuests <= 0}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 Continuar
               </button>
@@ -356,7 +348,7 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
               <button
                 onClick={handleContinueFromTime}
                 disabled={!selectedTime}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 Continuar
               </button>
@@ -365,7 +357,7 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({ isOpen, onClo
               <button
                 onClick={handleCreateReservation}
                 disabled={!guestName.trim()}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 Crear Reserva
               </button>

@@ -57,11 +57,6 @@ const Timeline: React.FC = () => {
   const [isReservationDetailsOpen, setIsReservationDetailsOpen] = useState(false);
   const [activeDetailsTab, setActiveDetailsTab] = useState<'reserva' | 'perfil' | 'historial' | 'actividad'>('reserva'); // Tipado para las pestañas
   const [isNuevaMesaModalOpen, setIsNuevaMesaModalOpen] = useState(false);
-  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
-
-  // ESTADO PARA EL CAMBIO DE MESA
-  const [isChangingTable, setIsChangingTable] = useState(false);
-  const [tableToMove, setTableToMove] = useState<Table | null>(null);
 
   const [salonsData, setSalonsData] = useState<Salon[]>([
     {
@@ -154,27 +149,7 @@ const Timeline: React.FC = () => {
   ]);
 
   const handleTableClick = (table: Table) => {
-    if (isChangingTable && tableToMove) {
-      if (table.id === tableToMove.id) {
-        alert('No puedes mover la mesa a sí misma. Selecciona otra mesa libre.');
-        return;
-      }
-      if (table.occupied || table.reserved) {
-          alert('La mesa seleccionada ya está ocupada o reservada.');
-          return;
-      }
-      handleChangeTableConfirm(tableToMove.id, table.id);
-      setIsChangingTable(false);
-      setTableToMove(null);
-      setSelectedTable(null);
-      setIsReservationDetailsOpen(false);
-    } else {
-      setSelectedTable(table);
-      setIsReservationModalOpen(false);
-      setIsWalkInModalOpen(false);
-      // Abrir el panel de detalles solo si la mesa está reservada u ocupada
-      setIsReservationDetailsOpen(!!(table.reserved || table.occupied));
-    }
+    setSelectedTable(table);
   };
 
   const handleNewReservation = () => {
@@ -480,13 +455,15 @@ const Timeline: React.FC = () => {
 
     switch (table.size) {
       case 'small':
-        sizeClasses = "w-12 h-12 text-sm";
+        sizeClasses = "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-xs sm:text-sm";
         break;
       case 'medium':
-        sizeClasses = "w-16 h-16 text-base";
+        sizeClasses = "w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 text-xs sm:text-base";
         break;
       case 'large':
-        sizeClasses = table.shape === 'rectangular' ? "w-24 h-16 text-base" : "w-20 h-20 text-lg";
+        sizeClasses = table.shape === 'rectangular' 
+          ? "w-14 h-10 sm:w-20 sm:h-12 md:w-24 md:h-16 text-xs sm:text-base" 
+          : "w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 text-xs sm:text-base md:text-lg";
         break;
     }
 
@@ -558,44 +535,23 @@ const Timeline: React.FC = () => {
 
   return (
     <div className="h-screen bg-slate-800 text-white flex flex-col">
-      <Header />
+      <Header salones={salonsData} />
 
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-        <div
-          className={`flex flex-col border-r border-slate-700 bg-[#211B17]
-          w-full md:w-[400px] lg:w-[477px] overflow-y-auto
-          ${isReservationDetailsOpen && selectedTable && (selectedTable.reserved || selectedTable.occupied) ? '' : 'flex-grow md:flex-grow-0'}`}
-        >
-          {isReservationDetailsOpen && selectedTable && (selectedTable.reserved || selectedTable.occupied) ? (
-            <ReservationDetailsPanel
-              isOpen={isReservationDetailsOpen}
-              onClose={() => {
-                  setIsReservationDetailsOpen(false);
-                  setSelectedTable(null);
-              }}
-              table={selectedTable}
-              activeTab={activeDetailsTab}
-              setActiveTab={setActiveDetailsTab}
-              onUpdateReservation={handleUpdateReservation}
-              onFinalizeWalkIn={handleFinalizeWalkIn}
-              onChangeTable={handleChangeTableInit}
-              onDeleteReservation={handleDeleteReservation} 
-            />
-          ) : (
-            <div className="flex flex-col flex-1">
-                <div className="p-4 pb-2">
-                    <div className="relative">
-                        <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="Buscar"
-                            className="w-full text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 border border-gray-600"
-                            style={{ backgroundColor: '#4c4037' }}
-                        />
-                    </div>
-                </div>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col border-r border-slate-700" style={{ backgroundColor: '#211B17', width: '477px' }}>
+          <div className="p-4 pb-2">
+            <div className="relative">
+              <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Buscar"
+                className="w-full text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 border border-gray-600"
+                style={{ backgroundColor: '#4c4037' }}
+              />
+            </div>
+          </div>
 
                 <div className="flex-1 overflow-y-auto p-4 pt-2 flex flex-col">
                     <div className="flex-1">
@@ -698,62 +654,65 @@ const Timeline: React.FC = () => {
           )}
         </div>
 
-        <div className="flex-1 bg-slate-100 flex flex-col overflow-y-auto">
-          <div className="bg-white border-b border-gray-200">
-            <div className="flex space-x-0 items-center overflow-x-auto whitespace-nowrap">
-              {salonsData.map((salon) => (
+        {!isReservationDetailsOpen ? (
+          <div className="flex-1 bg-slate-100 flex flex-col">
+            <div className="bg-white border-b border-gray-200">
+              <div className="flex space-x-0 items-center">
+                {salonsData.map((salon) => (
+                  <button
+                    key={salon.id}
+                    onClick={() => setActiveTab(salon.id)}
+                    className={`px-6 py-3 text-sm font-medium border-r border-gray-200 transition-colors ${
+                      activeTab === salon.id
+                        ? 'bg-gray-50 text-gray-900 border-b-2 border-blue-500'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {salon.name}
+                  </button>
+                ))}
                 <button
-                  key={salon.id}
-                  onClick={() => {
-                    setActiveTab(salon.id);
-                    if (!isChangingTable) {
-                        setSelectedTable(null);
-                        setIsReservationDetailsOpen(false);
-                    }
-                  }}
-                  className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-r border-gray-200 transition-colors ${
-                    activeTab === salon.id
-                      ? 'bg-gray-50 text-gray-900 border-b-2 border-blue-500'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
+                  onClick={handleOpenNuevaMesaModal}
+                  className="ml-2 px-4 py-2 bg-[#FF6900] text-white font-medium rounded-md hover:bg-orange-600 transition-colors flex items-center shadow-md"
                 >
-                  {salon.name}
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Nueva mesa</span>
                 </button>
-              ))}
-              <button
-                onClick={handleOpenNuevaMesaModal}
-                className="ml-auto mr-4 px-4 py-2 bg-[#FF6900] text-white font-medium rounded-md hover:bg-orange-600 transition-colors flex items-center shadow-md flex-shrink-0"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span>Nueva mesa</span>
-              </button>
+              </div>
+            </div>
+
+            <div className="p-8 h-full">
+              {currentSalon && currentSalon.tables.length > 0 ? (
+                <div className="grid grid-cols-8 grid-rows-8 gap-4 h-full max-w-4xl mx-auto">
+                  {currentSalon.tables.map((table) => (
+                    <div
+                      key={table.id}
+                      className={`${getTableStyle(table)} ${getTableGridPosition(table.id)}`}
+                      onClick={() => handleTableClick(table)}
+                    >
+                      {table.id}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <p>No hay mesas configuradas para este salón</p>
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="p-4 md:p-8 h-full overflow-x-auto">
-            {currentSalon && currentSalon.tables.length > 0 ? (
-              <div
-                className="grid grid-cols-8 grid-rows-8 gap-4 h-full min-w-[700px] md:min-w-0 md:max-w-4xl md:mx-auto"
-              >
-                {currentSalon.tables.map((table) => (
-                  <div
-                    key={table.id}
-                    className={`${getTableStyle(table)} ${getTableGridPosition(table.id)}`}
-                    onClick={() => handleTableClick(table)}
-                  >
-                    {table.id}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                <p>No hay mesas configuradas para este salón</p>
-              </div>
-            )}
-          </div>
-        </div>
+        ) : (
+          <ReservationDetailsPanel
+            isOpen={isReservationDetailsOpen}
+            onClose={() => setIsReservationDetailsOpen(false)}
+            table={selectedTable}
+            activeTab={activeDetailsTab}
+            setActiveTab={setActiveDetailsTab}
+            onUpdateReservation={handleUpdateReservation}
+          />
+        )}
       </div>
 
       {/* Modales */}

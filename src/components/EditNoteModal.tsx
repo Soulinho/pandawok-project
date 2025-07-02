@@ -34,9 +34,9 @@ const EditNoteModal: React.FC<EditNoteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-96 max-w-md mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full sm:w-96 max-w-md">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Nueva nota</h2>
           <button
             onClick={handleCancel}
@@ -48,7 +48,7 @@ const EditNoteModal: React.FC<EditNoteModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -57,16 +57,16 @@ const EditNoteModal: React.FC<EditNoteModalProps> = ({
           />
         </div>
 
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-4 sm:p-6 border-t border-gray-200">
           <button
             onClick={handleCancel}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 text-gray-700 text-sm sm:text-base bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors font-medium"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm sm:text-base rounded-lg transition-colors font-medium"
           >
             Guardar
           </button>

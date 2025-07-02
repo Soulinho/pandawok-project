@@ -14,7 +14,6 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/recuperar-contraseña" element={<RecoverPassword />} />
           <Route path="/timeline" element={<Timeline />} />
-          <Route path='/clientes' element={<ClientsList />} />
           <Route path="/reservation" element={<ReservationForm />} />
         </Routes>
       </div>
